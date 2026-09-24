@@ -1,15 +1,40 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ProductForm, {
   ProductFormData,
 } from "@/components/products/ProductForm";
+import { addProduct } from "@/services/products.service";
 
 export default function AddProductPage() {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (data: ProductFormData) => {
-    console.log("Product data:", data);
+  const handleSubmit = async (data: ProductFormData) => {
+    if (loading) return;
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const product = await addProduct({
+        title: data.title,
+        description: data.description,
+        price: Number(data.price),
+        stock: Number(data.stock),
+        category: data.category,
+      });
+
+      console.log("Created product:", product);
+
+      router.push(`/products/${product.id}`);
+    } catch {
+      setError("Failed to create product. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -22,15 +47,15 @@ export default function AddProductPage() {
           ← Back to products
         </button>
 
-        <h1 className="mb-2 text-2xl font-bold text-gray-900">
-          Add Product
-        </h1>
+        <h1 className="mb-2 text-2xl font-bold text-gray-900">Add Product</h1>
 
-        <p className="mb-6 text-gray-600">
-          Create a new product.
-        </p>
-
-        <ProductForm onSubmit={handleSubmit} />
+        <p className="mb-6 text-gray-600">Create a new product.</p>
+        {error && (
+          <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+            {error}
+          </div>
+        )}
+        <ProductForm onSubmit={handleSubmit} loading={loading} />
       </div>
     </main>
   );
