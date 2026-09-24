@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getProducts, Product } from "@/services/products.service";
+import {
+  getProducts,
+  searchProducts,
+  Product,
+} from "@/services/products.service";
 import ProductTable from "@/components/products/ProductTable";
 import ProductPagination from "@/components/products/ProductPagination";
+import ProductSearch from "@/components/products/ProductSearch";
 import { isAuthenticated } from "@/lib/auth";
 
 const VALID_PAGE_SIZES = [10, 20, 50];
@@ -17,16 +22,15 @@ export default function ProductsPage() {
   const [totalProducts, setTotalProducts] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const requestIdRef = useRef(0);
 
   const rawPage = Number(searchParams.get("page"));
   const rawPageSize = Number(searchParams.get("pageSize"));
+  const searchQuery = searchParams.get("search") ?? "";
 
-  const page =
-    Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
 
-  const pageSize = VALID_PAGE_SIZES.includes(rawPageSize)
-    ? rawPageSize
-    : 20;
+  const pageSize = VALID_PAGE_SIZES.includes(rawPageSize) ? rawPageSize : 20;
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -34,39 +38,59 @@ export default function ProductsPage() {
       return;
     }
 
-    const fetchProducts = async () => {
+    const requestId = ++requestIdRef.current;
+
+    const timeoutId = setTimeout(async () => {
       try {
         setLoading(true);
         setError("");
 
         const skip = (page - 1) * pageSize;
 
-        const data = await getProducts({
-          limit: pageSize,
-          skip,
-        });
+        const data = searchQuery
+          ? await searchProducts(searchQuery, {
+              limit: pageSize,
+              skip,
+            })
+          : await getProducts({
+              limit: pageSize,
+              skip,
+            });
+
+        // Ignore old request if a newer request has started
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
 
         setProducts(data.products);
         setTotalProducts(data.total);
 
-        // If page is greater than the last valid page,
-        // go back to the last valid page.
         const totalPages = Math.ceil(data.total / pageSize);
 
         if (page > totalPages && totalPages > 0) {
-          router.replace(
-            `/products?page=${totalPages}&pageSize=${pageSize}`
-          );
+          const params = new URLSearchParams(searchParams.toString());
+
+          params.set("page", String(totalPages));
+
+          router.replace(`/products?${params.toString()}`);
         }
       } catch (error) {
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+
         setError("Failed to load products.");
       } finally {
-        setLoading(false);
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
-    };
+    }, 500);
 
-    fetchProducts();
-  }, [router, page, pageSize]);
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [router, page, pageSize, searchQuery, searchParams]);
 
   const totalPages = Math.ceil(totalProducts / pageSize);
 
@@ -75,15 +99,29 @@ export default function ProductsPage() {
       return;
     }
 
-    router.push(
-      `/products?page=${newPage}&pageSize=${pageSize}`
-    );
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.set("page", String(newPage));
+    params.set("pageSize", String(pageSize));
+
+    router.push(`/products?${params.toString()}`);
   };
 
   const handlePageSizeChange = (newPageSize: number) => {
-    router.push(
-      `/products?page=1&pageSize=${newPageSize}`
-    );
+    router.push(`/products?page=1&pageSize=${newPageSize}`);
+  };
+  const handleSearchChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.set("page", "1");
+
+    if (value.trim()) {
+      params.set("search", value.trim());
+    } else {
+      params.delete("search");
+    }
+
+    router.push(`/products?${params.toString()}`);
   };
 
   if (loading) {
@@ -114,27 +152,43 @@ export default function ProductsPage() {
   return (
     <main className="min-h-screen bg-gray-100 p-6">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Products
-          </h1>
+        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Products</h1>
 
-          <p className="text-sm text-gray-600">
-            Manage your products
-          </p>
+            <p className="text-sm text-gray-600">Manage your products</p>
+          </div>
+
+          <ProductSearch value={searchQuery} onChange={handleSearchChange} />
         </div>
 
         <div className="overflow-hidden rounded-xl bg-white shadow">
-          <ProductTable products={products} />
+          {products.length > 0 ? (
+  <ProductTable products={products} />
+) : (
+  <div className="px-6 py-16 text-center">
+    <h2 className="text-lg font-semibold text-gray-900">
+      No products found
+    </h2>
 
-          <ProductPagination
-            currentPage={page}
-            totalPages={totalPages}
-            pageSize={pageSize}
-            totalProducts={totalProducts}
-            onPageChange={handlePageChange}
-            onPageSizeChange={handlePageSizeChange}
-          />
+    <p className="mt-2 text-sm text-gray-600">
+      {searchQuery
+        ? `No products match "${searchQuery}".`
+        : "There are no products to display."}
+    </p>
+  </div>
+)}
+
+{products.length > 0 && (
+  <ProductPagination
+    currentPage={page}
+    totalPages={totalPages}
+    pageSize={pageSize}
+    totalProducts={totalProducts}
+    onPageChange={handlePageChange}
+    onPageSizeChange={handlePageSizeChange}
+  />
+)}
         </div>
       </div>
     </main>
