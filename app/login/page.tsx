@@ -2,7 +2,7 @@
 
 import { FormEvent, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { loginUser } from "@/services/auth";
+import { loginUser } from "@/services/auth.service";
 import { isAuthenticated } from "@/lib/auth";
 
 export default function LoginPage() {
