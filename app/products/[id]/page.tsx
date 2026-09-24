@@ -136,7 +136,7 @@ export default function ProductDetailsPage() {
                   >
                     {product.thumbnail ? (
                       <img
-                        src={product.thumbnail}
+                        src={image}
                         alt={product.title}
                         className="max-h-full max-w-full object-contain"
                       />
@@ -170,18 +170,21 @@ export default function ProductDetailsPage() {
                 ${product.price}
               </p>
 
-              <button
-                onClick={() => router.push(`/products/${product.id}/edit`)}
-                className="mt-8 rounded-lg bg-gray-900 px-5 py-2.5 font-medium text-white hover:bg-gray-800"
-              >
-                Edit Product
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="ml-3 rounded-lg border border-red-300 px-5 py-2.5 font-medium text-red-600 hover:bg-red-50"
-              >
-                Delete Product
-              </button>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={() => router.push(`/products/${product.id}/edit`)}
+                  className="w-full rounded-lg bg-gray-900 px-5 py-2.5 font-medium text-white hover:bg-gray-800 sm:w-auto"
+                >
+                  Edit Product
+                </button>
+
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full rounded-lg border border-red-300 px-5 py-2.5 font-medium text-red-600 hover:bg-red-50 sm:w-auto"
+                >
+                  Delete Product
+                </button>
+              </div>
               {showDeleteConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
                   <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">

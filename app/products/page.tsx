@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   getProducts,
@@ -16,12 +16,12 @@ import ProductPagination from "@/components/products/ProductPagination";
 import ProductSearch from "@/components/products/ProductSearch";
 import ProductFilters from "@/components/products/ProductFilters";
 import ProductTableSkeleton from "@/components/products/ProductTableSkeleton";
-import { isAuthenticated } from "@/lib/auth";
+import { isAuthenticated, logout } from "@/lib/auth";
 import { getLocalProductChanges } from "@/lib/product-store";
 
 const VALID_PAGE_SIZES = [10, 20, 50];
 
-export default function ProductsPage() {
+function ProductsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -174,14 +174,6 @@ export default function ProductsPage() {
 
           router.replace(`/products?${params.toString()}`);
         }
-
-        if (page > totalPages && totalPages > 0) {
-          const params = new URLSearchParams(searchParams.toString());
-
-          params.set("page", String(totalPages));
-
-          router.replace(`/products?${params.toString()}`);
-        }
       } catch (error) {
         if (requestId !== requestIdRef.current) {
           return;
@@ -193,7 +185,7 @@ export default function ProductsPage() {
           setLoading(false);
         }
       }
-    }, 500);
+    }, 800);
 
     return () => {
       clearTimeout(timeoutId);
@@ -268,7 +260,22 @@ export default function ProductsPage() {
   };
 
   const handlePageSizeChange = (newPageSize: number) => {
-    router.push(`/products?page=1&pageSize=${newPageSize}`);
+    const params = new URLSearchParams();
+
+    params.set("page", "1");
+    params.set("pageSize", String(newPageSize));
+
+    const search = searchParams.get("search");
+    const category = searchParams.get("category");
+    const sortBy = searchParams.get("sortBy");
+    const sortOrder = searchParams.get("sortOrder");
+
+    if (search) params.set("search", search);
+    if (category) params.set("category", category);
+    if (sortBy) params.set("sortBy", sortBy);
+    if (sortOrder) params.set("sortOrder", sortOrder);
+
+    router.push(`/products?${params.toString()}`);
   };
   const handleSearchChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -283,21 +290,25 @@ export default function ProductsPage() {
 
     router.push(`/products?${params.toString()}`);
   };
+  const handleLogout = () => {
+    logout();
+    router.replace("/login");
+  };
 
   if (loading) {
-  return (
-    <main className="min-h-screen bg-gray-100 p-6">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6">
-          <div className="h-8 w-32 animate-pulse rounded bg-gray-200" />
-          <div className="mt-2 h-4 w-48 animate-pulse rounded bg-gray-200" />
-        </div>
+    return (
+      <main className="min-h-screen bg-gray-100 p-6">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-6">
+            <div className="h-8 w-32 animate-pulse rounded bg-gray-200" />
+            <div className="mt-2 h-4 w-48 animate-pulse rounded bg-gray-200" />
+          </div>
 
-        <ProductTableSkeleton />
-      </div>
-    </main>
-  );
-}
+          <ProductTableSkeleton />
+        </div>
+      </main>
+    );
+  }
 
   if (error) {
     return (
@@ -319,27 +330,42 @@ export default function ProductsPage() {
   return (
     <main className="min-h-screen bg-gray-100 p-6">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Products</h1>
+        <header className="mb-6 rounded-xl bg-white px-5 py-4 shadow-sm">
+  <div className="flex items-center justify-between gap-4">
+    <div>
+      <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
+        Product Admin
+      </h1>
+      <p className="text-sm text-gray-500">
+        Manage your products
+      </p>
+    </div>
 
-            <p className="text-sm text-gray-600">Manage your products</p>
-          </div>
+    <button
+      onClick={handleLogout}
+      className="shrink-0 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+    >
+      Logout
+    </button>
+  </div>
 
-          <div className="flex flex-col gap-3 md:flex-row md:items-end">
-            <ProductSearch value={searchQuery} onChange={handleSearchChange} />
+  <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-end">
+    <ProductSearch
+      value={searchQuery}
+      onChange={handleSearchChange}
+    />
 
-            <ProductFilters
-              category={category}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              categories={categories}
-              onCategoryChange={handleCategoryChange}
-              onSortChange={handleSortChange}
-              onSortOrderChange={handleSortOrderChange}
-            />
-          </div>
-        </div>
+    <ProductFilters
+      category={category}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
+      categories={categories}
+      onCategoryChange={handleCategoryChange}
+      onSortChange={handleSortChange}
+      onSortOrderChange={handleSortOrderChange}
+    />
+  </div>
+</header>
 
         <div className="overflow-hidden rounded-xl bg-white shadow">
           {products.length > 0 ? (
@@ -377,5 +403,12 @@ export default function ProductsPage() {
         </div>
       </div>
     </main>
+  );
+}
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<ProductTableSkeleton />}>
+      <ProductsPageContent />
+    </Suspense>
   );
 }

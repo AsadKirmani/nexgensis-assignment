@@ -10,7 +10,7 @@ export default function ProductTable({ products }: ProductTableProps) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left">
-        <thead className="border-b bg-gray-50">
+        <thead className="border-b border-gray-200 bg-gray-50">
           <tr>
             <th className="px-6 py-4 text-sm font-semibold text-gray-900">
               Product
@@ -38,7 +38,7 @@ export default function ProductTable({ products }: ProductTableProps) {
           {products.map((product) => (
             <tr
               key={product.id}
-              className="border-b last:border-b-0 hover:bg-gray-50"
+              className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50"
             >
               <td className="px-6 py-4">
                 <div className="flex items-center gap-3">
