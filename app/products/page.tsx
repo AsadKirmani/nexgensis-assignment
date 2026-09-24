@@ -11,6 +11,7 @@ import {
   ProductCategory,
 } from "@/services/products.service";
 import ProductTable from "@/components/products/ProductTable";
+import ProductCard from "@/components/products/ProductCard";
 import ProductPagination from "@/components/products/ProductPagination";
 import ProductSearch from "@/components/products/ProductSearch";
 import ProductFilters from "@/components/products/ProductFilters";
@@ -334,7 +335,13 @@ export default function ProductsPage() {
 
         <div className="overflow-hidden rounded-xl bg-white shadow">
           {products.length > 0 ? (
-            <ProductTable products={products} />
+            <>
+              <div className="hidden md:block">
+                <ProductTable products={products} />
+              </div>
+
+              <ProductCard products={products} />
+            </>
           ) : (
             <div className="px-6 py-16 text-center">
               <h2 className="text-lg font-semibold text-gray-900">
