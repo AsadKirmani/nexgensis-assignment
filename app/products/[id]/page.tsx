@@ -114,6 +114,13 @@ export default function ProductDetailsPage() {
                 ${product.price}
               </p>
 
+              <button
+                onClick={() => router.push(`/products/${product.id}/edit`)}
+                className="mt-8 rounded-lg bg-gray-900 px-5 py-2.5 font-medium text-white hover:bg-gray-800"
+              >
+                Edit Product
+              </button>
+
               <div className="mt-3 flex items-center gap-4">
                 <span className="rounded-md bg-yellow-50 px-3 py-1 text-sm font-medium text-yellow-700">
                   ★ {product.rating}

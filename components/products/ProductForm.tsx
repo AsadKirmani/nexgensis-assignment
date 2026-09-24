@@ -11,21 +11,27 @@ export interface ProductFormData {
 }
 
 interface ProductFormProps {
+  initialData?: ProductFormData;
   onSubmit: (data: ProductFormData) => void;
   loading?: boolean;
+  submitLabel?: string;
 }
 
 export default function ProductForm({
+ initialData,
   onSubmit,
   loading = false,
+  submitLabel = "Add Product",
 }: ProductFormProps) {
-  const [form, setForm] = useState<ProductFormData>({
+  const [form, setForm] = useState<ProductFormData>(
+  initialData ?? {
     title: "",
     description: "",
     price: "",
     stock: "",
     category: "",
-  });
+  }
+);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -220,7 +226,7 @@ export default function ProductForm({
         disabled={loading}
         className="rounded-lg bg-gray-900 px-5 py-2.5 font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {loading ? "Saving..." : "Add Product"}
+        {loading ? "Saving..." : submitLabel}
       </button>
     </form>
   );
