@@ -9,7 +9,6 @@ export default function ProductTable({
   products,
 }: ProductTableProps) {
   return (
-    <div className="overflow-hidden rounded-xl bg-white shadow">
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead className="border-b bg-gray-50">
@@ -78,6 +77,5 @@ export default function ProductTable({
           </tbody>
         </table>
       </div>
-    </div>
   );
 }
