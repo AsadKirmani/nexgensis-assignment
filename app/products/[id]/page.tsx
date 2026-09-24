@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getProduct, Product } from "@/services/products.service";
+import {
+  deleteProduct,
+  getProduct,
+  Product,
+} from "@/services/products.service";
 import { isAuthenticated } from "@/lib/auth";
 
 export default function ProductDetailsPage() {
@@ -12,6 +16,25 @@ export default function ProductDetailsPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!product || deleting) return;
+
+    try {
+      setDeleting(true);
+      setError("");
+
+      await deleteProduct(product.id);
+
+      router.push("/products");
+    } catch {
+      setError("Failed to delete product. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -120,6 +143,44 @@ export default function ProductDetailsPage() {
               >
                 Edit Product
               </button>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="ml-3 rounded-lg border border-red-300 px-5 py-2.5 font-medium text-red-600 hover:bg-red-50"
+              >
+                Delete Product
+              </button>
+              {showDeleteConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                  <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+                    <h2 className="text-lg font-bold text-gray-900">
+                      Delete Product?
+                    </h2>
+
+                    <p className="mt-2 text-sm text-gray-600">
+                      Are you sure you want to delete "{product.title}"? This
+                      action cannot be undone.
+                    </p>
+
+                    <div className="mt-6 flex justify-end gap-3">
+                      <button
+                        onClick={() => setShowDeleteConfirm(false)}
+                        disabled={deleting}
+                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {deleting ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-3 flex items-center gap-4">
                 <span className="rounded-md bg-yellow-50 px-3 py-1 text-sm font-medium text-yellow-700">
