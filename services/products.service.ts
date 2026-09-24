@@ -10,6 +10,8 @@ export interface Product {
   stock: number;
   thumbnail: string;
   images: string[];
+  brand?: string;
+  sku?: string;
 }
 
 export interface ProductsResponse {
