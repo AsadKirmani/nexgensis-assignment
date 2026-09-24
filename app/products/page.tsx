@@ -15,6 +15,7 @@ import ProductCard from "@/components/products/ProductCard";
 import ProductPagination from "@/components/products/ProductPagination";
 import ProductSearch from "@/components/products/ProductSearch";
 import ProductFilters from "@/components/products/ProductFilters";
+import ProductTableSkeleton from "@/components/products/ProductTableSkeleton";
 import { isAuthenticated } from "@/lib/auth";
 import { getLocalProductChanges } from "@/lib/product-store";
 
@@ -284,12 +285,19 @@ export default function ProductsPage() {
   };
 
   if (loading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-gray-100">
-        <p className="text-gray-900">Loading products...</p>
-      </main>
-    );
-  }
+  return (
+    <main className="min-h-screen bg-gray-100 p-6">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-6">
+          <div className="h-8 w-32 animate-pulse rounded bg-gray-200" />
+          <div className="mt-2 h-4 w-48 animate-pulse rounded bg-gray-200" />
+        </div>
+
+        <ProductTableSkeleton />
+      </div>
+    </main>
+  );
+}
 
   if (error) {
     return (
