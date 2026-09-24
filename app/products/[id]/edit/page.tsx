@@ -11,6 +11,10 @@ import {
   Product,
 } from "@/services/products.service";
 import { isAuthenticated } from "@/lib/auth";
+import {
+  saveUpdatedProduct,
+  getLocalProductChanges,
+} from "@/lib/product-store";
 
 export default function EditProductPage() {
   const params = useParams();
@@ -32,9 +36,33 @@ export default function EditProductPage() {
         setLoading(true);
         setError("");
 
-        const data = await getProduct(params.id as string);
-        setProduct(data);
+        const productId = Number(params.id);
+        const changes = getLocalProductChanges();
+
+        // Check local products first
+        const localProduct = changes.added.find(
+          (item) => item.id === productId,
+        );
+
+        if (localProduct) {
+          setProduct(localProduct);
+          return;
+        }
+
+        // Check locally deleted API products
+        if (changes.deleted.includes(productId)) {
+          throw new Error("Product not found.");
+        }
+
+        // Fetch API product
+        const data = await getProduct(productId);
+
+        // Apply local update
+        const updatedProduct = changes.updated[data.id];
+
+        setProduct(updatedProduct ?? data);
       } catch {
+        setProduct(null);
         setError("Product not found.");
       } finally {
         setLoading(false);
@@ -51,12 +79,33 @@ export default function EditProductPage() {
       setSaving(true);
       setError("");
 
-      await updateProduct(product.id, {
+      const updatedData = {
         title: data.title,
         description: data.description,
         price: Number(data.price),
         stock: Number(data.stock),
         category: data.category,
+      };
+
+      // Local product
+      if (product.id >= 195) {
+        const updatedProduct = {
+          ...product,
+          ...updatedData,
+        };
+
+        saveUpdatedProduct(updatedProduct);
+
+        router.push(`/products/${product.id}`);
+        return;
+      }
+
+      // API product
+      const updatedProduct = await updateProduct(product.id, updatedData);
+
+      saveUpdatedProduct({
+        ...product,
+        ...updatedProduct,
       });
 
       router.push(`/products/${product.id}`);
@@ -99,13 +148,9 @@ export default function EditProductPage() {
           ← Back
         </button>
 
-        <h1 className="mb-2 text-2xl font-bold text-gray-900">
-          Edit Product
-        </h1>
+        <h1 className="mb-2 text-2xl font-bold text-gray-900">Edit Product</h1>
 
-        <p className="mb-6 text-gray-600">
-          Update product information.
-        </p>
+        <p className="mb-6 text-gray-600">Update product information.</p>
 
         {error && (
           <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">

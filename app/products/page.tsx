@@ -15,6 +15,7 @@ import ProductPagination from "@/components/products/ProductPagination";
 import ProductSearch from "@/components/products/ProductSearch";
 import ProductFilters from "@/components/products/ProductFilters";
 import { isAuthenticated } from "@/lib/auth";
+import { getLocalProductChanges } from "@/lib/product-store";
 
 const VALID_PAGE_SIZES = [10, 20, 50];
 
@@ -70,31 +71,67 @@ export default function ProductsPage() {
         setLoading(true);
         setError("");
 
-        const skip = (page - 1) * pageSize;
-
         const data = searchQuery
           ? await searchProducts(searchQuery, {
-              limit: pageSize,
-              skip,
+              limit: 0,
+              skip: 0,
             })
           : category
             ? await getProductsByCategory(category, {
-                limit: pageSize,
-                skip,
+                limit: 0,
+                skip: 0,
               })
             : await getProducts({
-                limit: pageSize,
-                skip,
+                limit: 0,
+                skip: 0,
               });
 
         // Ignore old request if a newer request has started
         if (requestId !== requestIdRef.current) {
           return;
         }
-        let sortedProducts = [...data.products];
 
+        const changes = getLocalProductChanges();
+
+        // Apply local updates and remove locally deleted products
+        let mergedProducts = data.products
+          .filter((product) => !changes.deleted.includes(product.id))
+          .map((product) => changes.updated[product.id] ?? product);
+
+        // Add locally created products
+        const localAddedProducts = changes.added
+          .map((product) => changes.updated[product.id] ?? product)
+          .filter((product) => !changes.deleted.includes(product.id));
+
+        mergedProducts = [
+          ...localAddedProducts,
+          ...mergedProducts.filter(
+            (product) =>
+              !localAddedProducts.some(
+                (localProduct) => localProduct.id === product.id,
+              ),
+          ),
+        ];
+
+        // Search local products
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+
+          mergedProducts = mergedProducts.filter((product) =>
+            product.title.toLowerCase().includes(query),
+          );
+        }
+
+        // Category filter for local products
+        if (category) {
+          mergedProducts = mergedProducts.filter(
+            (product) => product.category === category,
+          );
+        }
+
+        // Sort
         if (sortBy) {
-          sortedProducts.sort((a, b) => {
+          mergedProducts.sort((a, b) => {
             let comparison = 0;
 
             if (sortBy === "title") {
@@ -113,10 +150,28 @@ export default function ProductsPage() {
           });
         }
 
-        setProducts(sortedProducts);
-        setTotalProducts(data.total);
+        // Pagination happens LAST
+        const total = mergedProducts.length;
 
-        const totalPages = Math.ceil(data.total / pageSize);
+        const startIndex = (page - 1) * pageSize;
+
+        const paginatedProducts = mergedProducts.slice(
+          startIndex,
+          startIndex + pageSize,
+        );
+
+        setProducts(paginatedProducts);
+        setTotalProducts(total);
+
+        const totalPages = Math.ceil(total / pageSize);
+
+        if (page > totalPages && totalPages > 0) {
+          const params = new URLSearchParams(searchParams.toString());
+
+          params.set("page", String(totalPages));
+
+          router.replace(`/products?${params.toString()}`);
+        }
 
         if (page > totalPages && totalPages > 0) {
           const params = new URLSearchParams(searchParams.toString());
@@ -262,22 +317,19 @@ export default function ProductsPage() {
             <p className="text-sm text-gray-600">Manage your products</p>
           </div>
 
-           <div className="flex flex-col gap-3 md:flex-row md:items-end">
-    <ProductSearch
-      value={searchQuery}
-      onChange={handleSearchChange}
-    />
+          <div className="flex flex-col gap-3 md:flex-row md:items-end">
+            <ProductSearch value={searchQuery} onChange={handleSearchChange} />
 
-    <ProductFilters
-      category={category}
-      sortBy={sortBy}
-      sortOrder={sortOrder}
-      categories={categories}
-      onCategoryChange={handleCategoryChange}
-      onSortChange={handleSortChange}
-      onSortOrderChange={handleSortOrderChange}
-    />
-  </div>
+            <ProductFilters
+              category={category}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              categories={categories}
+              onCategoryChange={handleCategoryChange}
+              onSortChange={handleSortChange}
+              onSortOrderChange={handleSortOrderChange}
+            />
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-xl bg-white shadow">

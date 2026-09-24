@@ -6,6 +6,7 @@ import ProductForm, {
   ProductFormData,
 } from "@/components/products/ProductForm";
 import { addProduct } from "@/services/products.service";
+import { saveAddedProduct } from "@/lib/product-store";
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -27,9 +28,14 @@ export default function AddProductPage() {
         category: data.category,
       });
 
-      console.log("Created product:", product);
+      const localProduct = saveAddedProduct({
+        ...product,
+        images: product.images ?? [],
+        thumbnail: product.thumbnail ?? "",
+        reviews: product.reviews ?? [],
+      });
 
-      router.push(`/products/${product.id}`);
+      router.push(`/products/${localProduct.id}`);
     } catch {
       setError("Failed to create product. Please try again.");
     } finally {

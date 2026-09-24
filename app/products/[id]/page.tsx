@@ -8,6 +8,8 @@ import {
   Product,
 } from "@/services/products.service";
 import { isAuthenticated } from "@/lib/auth";
+import { saveDeletedProduct } from "@/lib/product-store";
+import { getLocalProductChanges } from "@/lib/product-store";
 
 export default function ProductDetailsPage() {
   const params = useParams();
@@ -25,9 +27,10 @@ export default function ProductDetailsPage() {
     try {
       setDeleting(true);
       setError("");
-
-      await deleteProduct(product.id);
-
+      if (product.id < 195) {
+        await deleteProduct(product.id);
+      }
+      saveDeletedProduct(product.id);
       router.push("/products");
     } catch {
       setError("Failed to delete product. Please try again.");
@@ -47,9 +50,33 @@ export default function ProductDetailsPage() {
         setLoading(true);
         setError("");
 
-        const data = await getProduct(params.id as string);
-        setProduct(data);
+        const changes = getLocalProductChanges();
+        const productId = Number(params.id);
+
+        // Check locally added products first
+        const localProduct = changes.added.find(
+          (item) => item.id === productId,
+        );
+
+        if (localProduct) {
+          setProduct(localProduct);
+          return;
+        }
+
+        // Check if product was deleted locally
+        if (changes.deleted.includes(productId)) {
+          throw new Error("Product not found.");
+        }
+
+        // Fetch from API
+        const data = await getProduct(productId);
+
+        // Apply local update if one exists
+        const updatedProduct = changes.updated[data.id];
+
+        setProduct(updatedProduct ?? data);
       } catch {
+        setProduct(null);
         setError("Product not found.");
       } finally {
         setLoading(false);
@@ -100,18 +127,24 @@ export default function ProductDetailsPage() {
               />
             </div>
 
-            {product.images.length > 1 && (
+            {product.images?.length > 1 && (
               <div className="mt-4 grid grid-cols-4 gap-3">
-                {product.images.slice(0, 4).map((image) => (
+                {product.images?.slice(0, 4).map((image) => (
                   <div
                     key={image}
                     className="flex h-20 items-center justify-center rounded-lg border bg-gray-50 p-2"
                   >
-                    <img
-                      src={image}
-                      alt={product.title}
-                      className="max-h-full max-w-full object-contain"
-                    />
+                    {product.thumbnail ? (
+                      <img
+                        src={product.thumbnail}
+                        alt={product.title}
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    ) : (
+                      <div className="text-sm text-gray-400">
+                        No image available
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -219,11 +252,11 @@ export default function ProductDetailsPage() {
         <div className="mt-8 rounded-xl bg-white p-6 shadow">
           <h2 className="text-xl font-bold text-gray-900">Customer Reviews</h2>
 
-          {product.reviews.length === 0 ? (
+          {product.reviews?.length === 0 ? (
             <p className="mt-4 text-gray-500">No reviews available.</p>
           ) : (
             <div className="mt-6 space-y-5">
-              {product.reviews.map((review, index) => (
+              {product.reviews?.map((review, index) => (
                 <div
                   key={`${review.reviewerEmail}-${index}`}
                   className="border-b border-gray-200 pb-5 last:border-0 last:pb-0"
