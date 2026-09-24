@@ -5,11 +5,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   getProducts,
   searchProducts,
+  getCategories,
+  getProductsByCategory,
   Product,
+  ProductCategory,
 } from "@/services/products.service";
 import ProductTable from "@/components/products/ProductTable";
 import ProductPagination from "@/components/products/ProductPagination";
 import ProductSearch from "@/components/products/ProductSearch";
+import ProductFilters from "@/components/products/ProductFilters";
 import { isAuthenticated } from "@/lib/auth";
 
 const VALID_PAGE_SIZES = [10, 20, 50];
@@ -23,14 +27,35 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const requestIdRef = useRef(0);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
 
   const rawPage = Number(searchParams.get("page"));
   const rawPageSize = Number(searchParams.get("pageSize"));
   const searchQuery = searchParams.get("search") ?? "";
+  const category = searchParams.get("category") ?? "";
+  const sortBy = searchParams.get("sortBy") ?? "";
+  const sortOrder = searchParams.get("sortOrder") === "desc" ? "desc" : "asc";
 
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
 
   const pageSize = VALID_PAGE_SIZES.includes(rawPageSize) ? rawPageSize : 20;
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      return;
+    }
+
+    const fetchCategories = async () => {
+      try {
+        const data = await getCategories();
+        setCategories(data);
+      } catch {
+        setCategories([]);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -52,17 +77,43 @@ export default function ProductsPage() {
               limit: pageSize,
               skip,
             })
-          : await getProducts({
-              limit: pageSize,
-              skip,
-            });
+          : category
+            ? await getProductsByCategory(category, {
+                limit: pageSize,
+                skip,
+              })
+            : await getProducts({
+                limit: pageSize,
+                skip,
+              });
 
         // Ignore old request if a newer request has started
         if (requestId !== requestIdRef.current) {
           return;
         }
+        let sortedProducts = [...data.products];
 
-        setProducts(data.products);
+        if (sortBy) {
+          sortedProducts.sort((a, b) => {
+            let comparison = 0;
+
+            if (sortBy === "title") {
+              comparison = a.title.localeCompare(b.title);
+            }
+
+            if (sortBy === "price") {
+              comparison = a.price - b.price;
+            }
+
+            if (sortBy === "rating") {
+              comparison = a.rating - b.rating;
+            }
+
+            return sortOrder === "asc" ? comparison : -comparison;
+          });
+        }
+
+        setProducts(sortedProducts);
         setTotalProducts(data.total);
 
         const totalPages = Math.ceil(data.total / pageSize);
@@ -90,7 +141,59 @@ export default function ProductsPage() {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [router, page, pageSize, searchQuery, searchParams]);
+  }, [
+    router,
+    page,
+    pageSize,
+    searchQuery,
+    searchParams,
+    category,
+    sortBy,
+    sortOrder,
+  ]);
+
+  const handleCategoryChange = (newCategory: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.set("page", "1");
+
+    if (newCategory) {
+      params.set("category", newCategory);
+      params.delete("search");
+    } else {
+      params.delete("category");
+    }
+
+    router.push(`/products?${params.toString()}`);
+  };
+
+  const handleSortChange = (newSortBy: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.set("page", "1");
+
+    if (newSortBy) {
+      params.set("sortBy", newSortBy);
+    } else {
+      params.delete("sortBy");
+    }
+
+    router.push(`/products?${params.toString()}`);
+  };
+
+  const handleSortOrderChange = (newSortOrder: "asc" | "desc") => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.set("page", "1");
+
+    if (newSortOrder) {
+      params.set("sortOrder", newSortOrder);
+    } else {
+      params.delete("sortOrder");
+    }
+
+    router.push(`/products?${params.toString()}`);
+  };
 
   const totalPages = Math.ceil(totalProducts / pageSize);
 
@@ -159,36 +262,51 @@ export default function ProductsPage() {
             <p className="text-sm text-gray-600">Manage your products</p>
           </div>
 
-          <ProductSearch value={searchQuery} onChange={handleSearchChange} />
+           <div className="flex flex-col gap-3 md:flex-row md:items-end">
+    <ProductSearch
+      value={searchQuery}
+      onChange={handleSearchChange}
+    />
+
+    <ProductFilters
+      category={category}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
+      categories={categories}
+      onCategoryChange={handleCategoryChange}
+      onSortChange={handleSortChange}
+      onSortOrderChange={handleSortOrderChange}
+    />
+  </div>
         </div>
 
         <div className="overflow-hidden rounded-xl bg-white shadow">
           {products.length > 0 ? (
-  <ProductTable products={products} />
-) : (
-  <div className="px-6 py-16 text-center">
-    <h2 className="text-lg font-semibold text-gray-900">
-      No products found
-    </h2>
+            <ProductTable products={products} />
+          ) : (
+            <div className="px-6 py-16 text-center">
+              <h2 className="text-lg font-semibold text-gray-900">
+                No products found
+              </h2>
 
-    <p className="mt-2 text-sm text-gray-600">
-      {searchQuery
-        ? `No products match "${searchQuery}".`
-        : "There are no products to display."}
-    </p>
-  </div>
-)}
+              <p className="mt-2 text-sm text-gray-600">
+                {searchQuery
+                  ? `No products match "${searchQuery}".`
+                  : "There are no products to display."}
+              </p>
+            </div>
+          )}
 
-{products.length > 0 && (
-  <ProductPagination
-    currentPage={page}
-    totalPages={totalPages}
-    pageSize={pageSize}
-    totalProducts={totalProducts}
-    onPageChange={handlePageChange}
-    onPageSizeChange={handlePageSizeChange}
-  />
-)}
+          {products.length > 0 && (
+            <ProductPagination
+              currentPage={page}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalProducts={totalProducts}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          )}
         </div>
       </div>
     </main>

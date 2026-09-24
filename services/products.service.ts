@@ -24,6 +24,12 @@ export interface ProductQuery {
   skip?: number;
 }
 
+export interface ProductCategory {
+  slug: string;
+  name: string;
+  url: string;
+}
+
 export const getProducts = async (
   params?: ProductQuery
 ): Promise<ProductsResponse> => {
@@ -54,8 +60,8 @@ export const searchProducts = async (
   return response.data;
 };
 
-export const getCategories = async () => {
-  const response = await api.get<string[]>("/products/categories");
+export const getCategories = async (): Promise<ProductCategory[]> => {
+  const response = await api.get<ProductCategory[]>("/products/categories");
 
   return response.data;
 };
@@ -79,6 +85,20 @@ export const updateProduct = async (
 
 export const deleteProduct = async (id: number) => {
   const response = await api.delete(`/products/${id}`);
+
+  return response.data;
+};
+
+export const getProductsByCategory = async (
+  category: string,
+  params?: ProductQuery
+): Promise<ProductsResponse> => {
+  const response = await api.get<ProductsResponse>(
+    `/products/category/${category}`,
+    {
+      params,
+    }
+  );
 
   return response.data;
 };
