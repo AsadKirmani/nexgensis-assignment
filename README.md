@@ -282,3 +282,11 @@ Start command for a standard Node.js deployment:
 ```bash
 npm run start
 ```
+
+## Problem Faced and How I Solved It
+
+One problem I faced was handling multiple product search requests when the user typed quickly. A previous search request could take longer to complete than a newer request, which could cause outdated results to replace the latest search results.
+
+I solved this by adding a 800ms debounce before making the search API request and tracking each request with a request ID using "useRef". Before updating the UI, I check whether the response belongs to the latest request. If it is an older request, its response is ignored.
+
+This ensures that only the latest search result is displayed, even when API responses arrive out of order.
